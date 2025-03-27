@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anti-Money Laundering System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            min-height: 100;
+            color: #fff;
+            overflow-x: hidden;
+            background: #000428;
+        }
+
+        .animated-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                linear-gradient(45deg, #000428 0%, #004e92 100%),
+                radial-gradient(circle at 50% 0%, #1a2980 0%, #26d0ce 100%);
+            overflow: hidden;
+        }
+
+        .grid {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background-image: 
+                linear-gradient(rgba(38, 208, 206, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(38, 208, 206, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: rotate(45deg);
+            animation: gridMove 20s linear infinite;
+            top: -50%;
+            left: -50%;
+        }
+
+        @keyframes gridMove {
+            0% { transform: rotate(45deg) translateY(0); }
+            100% { transform: rotate(45deg) translateY(-100px); }
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        .overlay {
+            background: rgba(0, 0, 0, 0.3);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            animation: slideDown 1s ease-out;
+        }
+
+        .login-btn {
+            background: #00bcd4;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 188, 212, 0.3);
+        }
+
+        .login-btn:hover {
+            background: #00acc1;
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 188, 212, 0.4);
+        }
+
+        .main-title {
+            text-align: center;
+            padding: 20px 20px 40px;
+            animation: fadeIn 1.5s ease-out;
+            margin-top: -40px;
+        }
+
+        .main-title h1 {
+            font-size: 52px;
+            margin-bottom: 20px;
+            color: #4ECDC4;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .main-title div {
+            margin-top: 20px;
+        }
+
+        .main-description {
+            font-size: 16px;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeIn 1.5s ease-out;
+        }
+
+        .features-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px 20px 50px;
+            animation: slideUp 1s ease-out;
+            margin-top: -20px;
+        }
+
+        .feature-box {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 40px 30px;
+            border-radius: 20px;
+            width: 300px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            transition: 0.5s;
+        }
+
+        .feature-box:hover::before {
+            left: 100%;
+        }
+
+        .feature-box:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(38, 208, 206, 0.5);
+            box-shadow: 0 10px 30px rgba(38, 208, 206, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #26d0ce, #1a2980);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .feature-box h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .feature-box p {
+            font-size: 16px;
+            color: #e0e0e0;
+        }
+
+        .reports-section {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 90%;
+            color: #333;
+            animation: modalOpen 0.5s ease-out;
+        }
+
+        @keyframes modalOpen {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -40%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .reports-section h2 {
+            color: #00bcd4;
+            margin-bottom: 20px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #333;
+            transition: transform 0.3s ease;
+        }
+
+        .close-btn:hover {
+            transform: rotate(90deg);
+        }
+
+        .report-item {
+            background: #f5f5f5;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00bcd4;
+            transition: transform 0.3s ease;
+        }
+
+        .report-item:hover {
+            transform: translateX(10px);
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="animated-background">
+        <div class="grid"></div>
+        <div class="particles" id="particles"></div>
+    </div>
+    <div class="overlay">
+        <header class="header">
+            <div></div>
+            <button class="login-btn" onclick="handleLogout()">Logout</button>
+        </header>
+
+        <div class="main-title">
+            <h1>Anti-Money Laundering System</h1>
+            <p class="main-description">
+                Our advanced Anti-Money Laundering (AML) system employs cutting-edge technology to detect and prevent financial crimes. 
+                With real-time monitoring, risk assessment, and automated reporting capabilities, we ensure regulatory compliance while 
+                protecting your institution from fraudulent activities.
+            </p>
+        </div>
+
+        <div class="features-container">
+            <div class="feature-box" id="monitor-box" onclick="goToMonitorTransaction()">
+                <i class="fas fa-search-dollar feature-icon"></i>
+                <h3>Monitor Transactions</h3>
+            </div>
+
+            <div class="feature-box" onclick="window.location.href='risk_score.html'">
+                <i class="fas fa-chart-line feature-icon"></i>
+                <h3>Risk Scores</h3>
+            </div>
+
+            <div class="feature-box" onclick="window.location.href='generate_report.html'">
+                <i class="fas fa-file-alt feature-icon"></i>
+                <h3>Generate Report</h3>
+            </div>
+        </div>
+
+        <div class="reports-section" id="reports-section">
+            <button class="close-btn">&times;</button>
+            <h2>Unusual Transaction Reports</h2>
+            <div class="report-item">
+                <h4>Large International Transfer</h4>
+                <p>Amount: $50,000</p>
+                <p>From: United States</p>
+                <p>To: Switzerland</p>
+                <p>Frequency: 3rd transaction this week</p>
+            </div>
+            <div class="report-item">
+                <h4>Multiple Small Transactions</h4>
+                <p>Pattern: Multiple transactions just below reporting threshold</p>
+                <p>Total Amount: $45,000</p>
+                <p>Time Period: Last 24 hours</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function goToMonitorTransaction() {
+            window.location.href = 'monitor_transaction.html';
+        }
+
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 50;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                const size = Math.random() * 10 + 5;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.top = `${Math.random() * 100}%`;
+                
+                particle.style.animationDuration = `${Math.random() * 20 + 10}s`;
+                particle.style.animationDelay = `${Math.random() * 5}s`;
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        createParticles();
+
+        document.getElementById('monitor-box').addEventListener('click', function() {
+            goToMonitorTransaction();
+        });
+
+        document.querySelector('.close-btn').addEventListener('click', function() {
+            document.getElementById('reports-section').style.display = 'none';
+        });
+
+        window.addEventListener('click', function(event) {
+            const reportsSection = document.getElementById('reports-section');
+            if (event.target === reportsSection) {
+                reportsSection.style.display = 'none';
+            }
+        });
+
+        const featureBoxes = document.querySelectorAll('.feature-box');
+        featureBoxes.forEach(box => {
+            box.addEventListener('mouseenter', () => {
+                const hoverSound = new Audio('data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==');
+                hoverSound.play().catch(e => {});
+            });
+        });
+
+        function handleLogout() {
+            // Clear login state
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('username');
+            // Redirect to login page
+            window.location.href = 'login.html';
+        }
+
+        // Check login status when page loads
+        window.onload = function() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (!isLoggedIn) {
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>
