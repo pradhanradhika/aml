@@ -15,10 +15,9 @@ ml_model = joblib.load("isolation_forest_model (1).pkl")
 # MySQL configuration
 DB_CONFIG = {
     'host': 'localhost',
-    'user': 'root',  # Change this to your MySQL username
-    'password': 'Ra@238gs',  # Change this to your MySQL password
-    'database': 'aml'  # Change this to your desired database name
-}
+    'user': 'root',  
+    'password': 'Ra@238gs',  
+    'database': 'aml'  }
 
 
 def get_db_connection():
