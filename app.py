@@ -7,12 +7,48 @@ import mysql.connector
 from mysql.connector import Error
 import psycopg2
 from psycopg2 import Error
+import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 app = Flask(__name__)
 CORS(app)
 
 # Load the ML model
-ml_model = joblib.load("isolation_forest_model (1).pkl")
+try:
+    print("\nLoading ML model...")
+    model = joblib.load('random_forest_model.pkl')
+    print("✅ ML model loaded successfully")
+    
+    # Validate model features
+    expected_features = [
+        'annual_income',
+        'total_transactions',
+        'total_amount_spent',
+        'average_transaction_amount',
+        'max_transaction_amount',
+        'unique_transaction_descriptions',
+        'days_since_first_transaction',
+        'transaction_frequency',
+        'transaction_amount_to_income_ratio',
+        'age'
+    ]
+    
+    # Check if model has the expected number of features
+    if hasattr(model, 'feature_names_in_'):
+        model_features = list(model.feature_names_in_)
+        if len(model_features) != len(expected_features):
+            print(f"❌ ERROR: Model expects {len(model_features)} features but we're providing {len(expected_features)}")
+            model = None
+        else:
+            print("✅ Model feature count validated")
+    else:
+        print("⚠️ Warning: Model does not have feature names, assuming correct order")
+        
+except Exception as e:
+    print(f"❌ Error loading ML model: {e}")
+    import traceback
+    print(f"Full traceback:\n{traceback.format_exc()}")
+    model = None
 
 # MySQL configuration
 DB_CONFIG = {
@@ -41,10 +77,23 @@ def get_db_connection():
 def get_pg_connection():
     """Create a PostgreSQL database connection"""
     try:
+        print("\nAttempting to connect to PostgreSQL database with config:")
+        print(f"Host: {PG_CONFIG['host']}")
+        print(f"Database: {PG_CONFIG['database']}")
+        print(f"User: {PG_CONFIG['user']}")
+        
         connection = psycopg2.connect(**PG_CONFIG)
+        print("✅ Successfully connected to PostgreSQL database")
         return connection
     except Error as e:
-        print(f"Error connecting to PostgreSQL Database: {e}")
+        print(f"\n❌ ERROR connecting to PostgreSQL Database: {str(e)}")
+        import traceback
+        print(f"Full traceback:\n{traceback.format_exc()}")
+        return None
+    except Exception as e:
+        print(f"\n❌ UNEXPECTED ERROR connecting to PostgreSQL Database: {str(e)}")
+        import traceback
+        print(f"Full traceback:\n{traceback.format_exc()}")
         return None
 
 def init_db():
@@ -204,9 +253,121 @@ def extract_features(transaction, df):
 def predict_suspicious_transactions(transactions, df):
     """Pass transactions to ML model and get predictions"""
     features = [extract_features(t, df) for _, t in transactions.iterrows()]
-    predictions = ml_model.predict(features)  # Predict using ML model
+    predictions = model.predict(features)  # Predict using ML model
     transactions["is_suspicious"] = predictions  # Add predictions column
     return transactions
+
+def calculate_features(customer_id, pg_connection):
+    """Calculate derived features for the ML model"""
+    try:
+        print(f"Calculating features for customer: {customer_id}")
+        
+        cursor = pg_connection.cursor()
+        
+        # Get customer data
+        cursor.execute('''
+            SELECT annual_income, age
+            FROM customers 
+            WHERE customer_id = %s
+        ''', (customer_id,))
+        customer_data = cursor.fetchone()
+        
+        if not customer_data:
+            print(f"Customer {customer_id} not found in customers table")
+            return None
+            
+        annual_income, age = customer_data
+        
+        # Get basic transaction stats
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as total_transactions,
+                SUM(transaction_amount) as total_amount_spent,
+                AVG(transaction_amount) as average_transaction_amount,
+                MAX(transaction_amount) as max_transaction_amount,
+                COUNT(DISTINCT transaction_type) as unique_transaction_descriptions
+            FROM transactions 
+            WHERE customer_id = %s
+        ''', (customer_id,))
+        txn_stats = cursor.fetchone()
+        
+        if not txn_stats or txn_stats[0] == 0:
+            print(f"No transactions found for customer {customer_id}")
+            return None
+            
+        total_transactions, total_amount_spent, avg_amount, max_amount, unique_types = txn_stats
+        
+        # Get transaction dates
+        cursor.execute('''
+            SELECT 
+                MIN(transaction_date),
+                MAX(transaction_date)
+            FROM transactions 
+            WHERE customer_id = %s
+        ''', (customer_id,))
+        first_date, last_date = cursor.fetchone()
+        
+        # Calculate derived features
+        try:
+            # Calculate days between first and last transaction
+            days_since_first = 0
+            if first_date and last_date:
+                days_since_first = (last_date - first_date).days
+            
+            # Calculate transaction frequency
+            transaction_frequency = 0
+            if days_since_first > 0:
+                transaction_frequency = total_transactions / days_since_first
+            
+            # Calculate transaction amount to income ratio
+            transaction_amount_to_income_ratio = 0
+            if annual_income and annual_income > 0:
+                transaction_amount_to_income_ratio = total_amount_spent / annual_income
+            
+            # Create features dictionary
+            features = {
+                'annual_income': float(annual_income or 0),
+                'total_transactions': int(total_transactions or 0),
+                'total_amount_spent': float(total_amount_spent or 0),
+                'average_transaction_amount': float(avg_amount or 0),
+                'max_transaction_amount': float(max_amount or 0),
+                'unique_transaction_descriptions': int(unique_types or 0),
+                'days_since_first_transaction': int(days_since_first or 0),
+                'transaction_frequency': float(transaction_frequency or 0),
+                'transaction_amount_to_income_ratio': float(transaction_amount_to_income_ratio or 0),
+                'age': int(age or 0)
+            }
+            
+            return features
+            
+        except Exception as calc_error:
+            print(f"Error calculating derived features: {str(calc_error)}")
+            return None
+        
+    except Exception as e:
+        print(f"Error in calculate_features: {str(e)}")
+        return None
+
+def check_transaction_dates(customer_id, pg_connection):
+    """Check transaction dates format"""
+    try:
+        cursor = pg_connection.cursor()
+        cursor.execute('''
+            SELECT transaction_date, transaction_amount, transaction_type
+            FROM transactions
+            WHERE customer_id = %s
+            LIMIT 5
+        ''', (customer_id,))
+        sample_transactions = cursor.fetchall()
+        
+        print(f"Sample transactions for customer {customer_id}:")
+        for txn in sample_transactions:
+            print(f"Date: {txn[0]}, Amount: {txn[1]}, Type: {txn[2]}")
+            
+        return sample_transactions
+    except Exception as e:
+        print(f"Error checking transaction dates: {e}")
+        return None
 
 @app.route("/")
 def index():
@@ -335,6 +496,92 @@ def search_customer():
     except Exception as e:
         print(f"Error searching customer: {str(e)}")
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+@app.route("/calculate-risk-score", methods=['POST'])
+def calculate_risk_score():
+    try:
+        customer_id = request.form.get('customer_id')
+        
+        if not customer_id:
+            return jsonify({'error': 'Customer ID is required'}), 400
+
+        connection = get_pg_connection()
+        if connection is None:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        # Verify customer exists
+        cursor = connection.cursor()
+        cursor.execute('''
+            SELECT customer_id, name, annual_income, age
+            FROM customers 
+            WHERE customer_id = %s
+        ''', (customer_id,))
+        customer_data = cursor.fetchone()
+        
+        if not customer_data:
+            return jsonify({'error': 'Customer not found'}), 404
+        
+        # Check if customer has transactions
+        cursor.execute('''
+            SELECT COUNT(*), 
+                   MIN(transaction_date),
+                   MAX(transaction_date)
+            FROM transactions 
+            WHERE customer_id = %s
+        ''', (customer_id,))
+        txn_count, first_txn, last_txn = cursor.fetchone()
+        
+        if txn_count == 0:
+            return jsonify({'error': 'No transactions found for this customer'}), 400
+        
+        # Calculate features
+        features = calculate_features(customer_id, connection)
+        if features is None:
+            return jsonify({'error': 'Could not calculate features for this customer'}), 400
+
+        # Convert features to DataFrame for model prediction
+        feature_order = [
+            'annual_income',
+            'total_transactions',
+            'total_amount_spent',
+            'average_transaction_amount',
+            'max_transaction_amount',
+            'unique_transaction_descriptions',
+            'days_since_first_transaction',
+            'transaction_frequency',
+            'transaction_amount_to_income_ratio',
+            'age'
+        ]
+        features_df = pd.DataFrame([features])[feature_order]
+        
+        # Make prediction
+        if model is None:
+            return jsonify({'error': 'ML model not available'}), 500
+            
+        risk_category = model.predict(features_df)[0]
+        
+        # Map risk categories to levels and colors
+        risk_mapping = {
+            0: {'level': 'Low Risk', 'color': '#00C851'},
+            1: {'level': 'Medium Risk', 'color': '#ffbb33'},
+            2: {'level': 'High Risk', 'color': '#ff4444'}
+        }
+        
+        risk_info = risk_mapping.get(risk_category, {'level': 'Unknown', 'color': '#ffffff'})
+        
+        cursor.close()
+        connection.close()
+        
+        return jsonify({
+            'risk_score': int(risk_category),
+            'risk_level': risk_info['level'],
+            'risk_color': risk_info['color'],
+            'features': features
+        })
+        
+    except Exception as e:
+        print(f"Error in calculate_risk_score: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     # Initialize the database when the app starts

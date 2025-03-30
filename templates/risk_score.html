@@ -170,6 +170,109 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        .risk-score-section {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .risk-score-button {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #2196f3, #00bcd4);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .risk-score-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 188, 212, 0.3);
+        }
+
+        .risk-score-details {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .risk-score-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .risk-score-main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .risk-score-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 3px solid #00bcd4;
+        }
+
+        .risk-score-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #00bcd4;
+        }
+
+        .risk-score-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .risk-level-badge {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .feature-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 5px;
+        }
+
+        .feature-value {
+            font-size: 16px;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -213,25 +316,76 @@
                     <div class="info-value" id="customerEmail"></div>
                 </div>
             </div>
+            
+            <div class="risk-score-section">
+                <button onclick="calculateRiskScore()" id="riskScoreButton" class="risk-score-button">
+                    <i class="fas fa-chart-line"></i> View Risk Score
+                </button>
+            </div>
+        </div>
+
+        <div id="riskScoreDetails" class="risk-score-details" style="display: none;">
+            <div class="risk-score-header">
+                <h3>Risk Score Analysis</h3>
+                <div class="risk-score-main">
+                    <div class="risk-score-circle">
+                        <div class="risk-score-value" id="riskScoreValue">-</div>
+                        <div class="risk-score-label">Risk Score</div>
+                    </div>
+                    <div class="risk-level-badge" id="riskLevelBadge">-</div>
+                </div>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-label">Total Transactions</div>
+                    <div class="feature-value" id="totalTransactions">-</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-label">Total Amount Spent</div>
+                    <div class="feature-value" id="totalAmountSpent">-</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-label">Average Transaction</div>
+                    <div class="feature-value" id="avgTransaction">-</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-label">Max Transaction</div>
+                    <div class="feature-value" id="maxTransaction">-</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-label">Transaction Types</div>
+                    <div class="feature-value" id="uniqueTypes">-</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-label">Transaction Frequency</div>
+                    <div class="feature-value" id="transactionFrequency">-</div>
+                </div>
+            </div>
         </div>
 
         <div id="errorMessage" class="error-message" style="display: none;"></div>
     </div>
 
     <script>
+        let currentCustomerId = null;
+
         async function searchCustomer() {
             const customerId = document.getElementById('customerId').value;
             const searchButton = document.getElementById('searchButton');
             const customerDetails = document.getElementById('customerDetails');
             const errorMessage = document.getElementById('errorMessage');
+            const riskScoreDetails = document.getElementById('riskScoreDetails');
 
             if (!customerId) {
                 errorMessage.textContent = 'Please enter a Customer ID';
                 errorMessage.style.display = 'block';
                 customerDetails.style.display = 'none';
+                riskScoreDetails.style.display = 'none';
                 return;
             }
 
+            currentCustomerId = customerId;
             searchButton.classList.add('loading');
             errorMessage.style.display = 'none';
 
@@ -258,14 +412,90 @@
                 document.getElementById('customerEmail').textContent = data.email;
 
                 customerDetails.style.display = 'block';
+                riskScoreDetails.style.display = 'none';
                 errorMessage.style.display = 'none';
 
             } catch (error) {
                 errorMessage.textContent = error.message;
                 errorMessage.style.display = 'block';
                 customerDetails.style.display = 'none';
+                riskScoreDetails.style.display = 'none';
             } finally {
                 searchButton.classList.remove('loading');
+            }
+        }
+
+        async function calculateRiskScore() {
+            if (!currentCustomerId) {
+                console.error('No customer ID available');
+                return;
+            }
+
+            const riskScoreButton = document.getElementById('riskScoreButton');
+            const riskScoreDetails = document.getElementById('riskScoreDetails');
+            const errorMessage = document.getElementById('errorMessage');
+
+            riskScoreButton.classList.add('loading');
+            errorMessage.style.display = 'none';
+
+            try {
+                console.log('Starting risk score calculation for customer:', currentCustomerId);
+                const formData = new FormData();
+                formData.append('customer_id', currentCustomerId);
+
+                console.log('Sending request to /calculate-risk-score...');
+                console.log('Form data:', Object.fromEntries(formData.entries()));
+                
+                const response = await fetch('/calculate-risk-score', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Received response:', data);
+
+                if (!response.ok) {
+                    console.error('Server error:', data.error);
+                    throw new Error(data.error || 'Failed to calculate risk score');
+                }
+
+                if (!data.features) {
+                    console.error('No features data received');
+                    throw new Error('No feature data available for risk calculation');
+                }
+
+                // Update risk score details
+                document.getElementById('riskScoreValue').textContent = data.risk_score;
+                document.getElementById('riskLevelBadge').textContent = data.risk_level;
+                document.getElementById('riskLevelBadge').style.color = data.risk_color;
+                
+                // Update feature values with error checking
+                try {
+                    document.getElementById('totalTransactions').textContent = data.features.total_transactions || 0;
+                    document.getElementById('totalAmountSpent').textContent = `$${(data.features.total_amount_spent || 0).toLocaleString()}`;
+                    document.getElementById('avgTransaction').textContent = `$${(data.features.average_transaction_amount || 0).toFixed(2)}`;
+                    document.getElementById('maxTransaction').textContent = `$${(data.features.max_transaction_amount || 0).toLocaleString()}`;
+                    document.getElementById('uniqueTypes').textContent = data.features.unique_transaction_descriptions || 0;
+                    document.getElementById('transactionFrequency').textContent = (data.features.transaction_frequency || 0).toFixed(2);
+                } catch (featureError) {
+                    console.error('Error updating feature values:', featureError);
+                    throw new Error('Error displaying feature values');
+                }
+
+                riskScoreDetails.style.display = 'block';
+                errorMessage.style.display = 'none';
+
+            } catch (error) {
+                console.error('Error in calculateRiskScore:', error);
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+                riskScoreDetails.style.display = 'none';
+            } finally {
+                riskScoreButton.classList.remove('loading');
             }
         }
     </script>
