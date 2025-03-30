@@ -13,13 +13,18 @@ from sklearn.preprocessing import StandardScaler
 app = Flask(__name__)
 CORS(app)
 
-# Load the ML model
+# Load the ML models
 try:
-    print("\nLoading ML model...")
-    model = joblib.load('random_forest_model.pkl')
-    print("✅ ML model loaded successfully")
+    print("\nLoading ML models...")
+    # Load Isolation Forest for transaction monitoring
+    isolation_model = joblib.load('isolation_forest_model.pkl')
+    print("✅ Isolation Forest model loaded successfully")
     
-    # Validate model features
+    # Load Random Forest for risk score prediction
+    risk_model = joblib.load('random_forest_model.pkl')
+    print("✅ Random Forest model loaded successfully")
+    
+    # Validate Random Forest model features
     expected_features = [
         'annual_income',
         'total_transactions',
@@ -33,22 +38,23 @@ try:
         'age'
     ]
     
-    # Check if model has the expected number of features
-    if hasattr(model, 'feature_names_in_'):
-        model_features = list(model.feature_names_in_)
+    # Check if Random Forest model has the expected number of features
+    if hasattr(risk_model, 'feature_names_in_'):
+        model_features = list(risk_model.feature_names_in_)
         if len(model_features) != len(expected_features):
-            print(f"❌ ERROR: Model expects {len(model_features)} features but we're providing {len(expected_features)}")
-            model = None
+            print(f"❌ ERROR: Random Forest model expects {len(model_features)} features but we're providing {len(expected_features)}")
+            risk_model = None
         else:
-            print("✅ Model feature count validated")
+            print("✅ Random Forest model feature count validated")
     else:
-        print("⚠️ Warning: Model does not have feature names, assuming correct order")
+        print("⚠️ Warning: Random Forest model does not have feature names, assuming correct order")
         
 except Exception as e:
-    print(f"❌ Error loading ML model: {e}")
+    print(f"❌ Error loading ML models: {e}")
     import traceback
     print(f"Full traceback:\n{traceback.format_exc()}")
-    model = None
+    isolation_model = None
+    risk_model = None
 
 # MySQL configuration
 DB_CONFIG = {
@@ -251,10 +257,12 @@ def extract_features(transaction, df):
     ]
 
 def predict_suspicious_transactions(transactions, df):
-    """Pass transactions to ML model and get predictions"""
+    """Pass transactions to Isolation Forest model and get predictions"""
     features = [extract_features(t, df) for _, t in transactions.iterrows()]
-    predictions = model.predict(features)  # Predict using ML model
-    transactions["is_suspicious"] = predictions  # Add predictions column
+    # Isolation Forest returns -1 for anomalies (suspicious) and 1 for normal transactions
+    predictions = isolation_model.predict(features)
+    # Convert -1/1 to 1/0 for consistency with the frontend
+    transactions["is_suspicious"] = (predictions == -1).astype(int)
     return transactions
 
 def calculate_features(customer_id, pg_connection):
@@ -554,11 +562,11 @@ def calculate_risk_score():
         ]
         features_df = pd.DataFrame([features])[feature_order]
         
-        # Make prediction
-        if model is None:
-            return jsonify({'error': 'ML model not available'}), 500
+        # Make prediction using Random Forest model
+        if risk_model is None:
+            return jsonify({'error': 'Risk prediction model not available'}), 500
             
-        risk_category = model.predict(features_df)[0]
+        risk_category = risk_model.predict(features_df)[0]
         
         # Map risk categories to levels and colors
         risk_mapping = {
