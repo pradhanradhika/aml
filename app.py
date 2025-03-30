@@ -1,10 +1,12 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import pandas as pd
 import joblib
 from datetime import datetime
 import mysql.connector
 from mysql.connector import Error
+import psycopg2
+from psycopg2 import Error
 
 app = Flask(__name__)
 CORS(app)
@@ -19,6 +21,13 @@ DB_CONFIG = {
     'password': 'Ra@238gs',  
     'database': 'aml'  }
 
+# PostgreSQL configuration
+PG_CONFIG = {
+    'host': 'localhost',
+    'user': 'postgres',
+    'password': 'radhika@28',  # Change this to your PostgreSQL password
+    'database': 'aml'   # Change this to your database name
+}
 
 def get_db_connection():
     """Create a database connection"""
@@ -27,6 +36,15 @@ def get_db_connection():
         return connection
     except Error as e:
         print(f"Error connecting to MySQL Database: {e}")
+        return None
+
+def get_pg_connection():
+    """Create a PostgreSQL database connection"""
+    try:
+        connection = psycopg2.connect(**PG_CONFIG)
+        return connection
+    except Error as e:
+        print(f"Error connecting to PostgreSQL Database: {e}")
         return None
 
 def init_db():
@@ -258,6 +276,65 @@ def get_transactions():
     except Exception as e:
         print("Error in get_transactions:", str(e))
         return jsonify({'error': str(e)}), 500
+
+@app.route("/search-customer", methods=['POST'])
+def search_customer():
+    try:
+        customer_id = request.form.get('customer_id')
+        if not customer_id:
+            return jsonify({'error': 'Customer ID is required'}), 400
+
+        print(f"Attempting to connect to PostgreSQL database...")
+        connection = get_pg_connection()
+        if connection is None:
+            print("Failed to connect to PostgreSQL database")
+            return jsonify({'error': 'Database connection failed. Please check your database configuration.'}), 500
+
+        print(f"Successfully connected to database. Searching for customer {customer_id}...")
+        cursor = connection.cursor()
+        
+        # Query to get customer details from existing customers table
+        query = '''
+            SELECT 
+                customer_id,
+                name,
+                age,
+                annual_income,
+                city_state,
+                email
+            FROM customers
+            WHERE customer_id = %s
+        '''
+        print(f"Executing query: {query}")
+        cursor.execute(query, (customer_id,))
+        
+        result = cursor.fetchone()
+        
+        if result is None:
+            print(f"Customer {customer_id} not found")
+            return jsonify({'error': 'Customer not found'}), 404
+            
+        print(f"Found customer: {result[1]}")  # Log customer name
+        
+        # Format the result
+        customer_data = {
+            'customer_id': result[0],
+            'name': result[1],
+            'age': result[2],
+            'annual_income': float(result[3]) if result[3] else 0,
+            'city_state': result[4],
+            'email': result[5]
+        }
+        
+        cursor.close()
+        connection.close()
+        print("Successfully retrieved customer data")
+        
+        return jsonify(customer_data)
+        
+    except Exception as e:
+        print(f"Error searching customer: {str(e)}")
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 if __name__ == "__main__":
     # Initialize the database when the app starts
