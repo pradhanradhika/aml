@@ -440,18 +440,16 @@
 
             try {
                 console.log('Starting risk score calculation for customer:', currentCustomerId);
-                const formData = new FormData();
-                formData.append('customer_id', currentCustomerId);
-
+                
                 console.log('Sending request to /calculate-risk-score...');
-                console.log('Form data:', Object.fromEntries(formData.entries()));
                 
                 const response = await fetch('/calculate-risk-score', {
                     method: 'POST',
-                    body: formData,
                     headers: {
+                        'Content-Type': 'application/json',
                         'Accept': 'application/json'
-                    }
+                    },
+                    body: JSON.stringify({ customer_id: currentCustomerId })
                 });
 
                 console.log('Response status:', response.status);

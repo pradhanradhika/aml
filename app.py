@@ -2,27 +2,43 @@ from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import pandas as pd
 import joblib
-from datetime import datetime
+from datetime import datetime, timedelta
 import mysql.connector
 from mysql.connector import Error
 import psycopg2
 from psycopg2 import Error
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+import os
 
 app = Flask(__name__)
 CORS(app)
 
+# MySQL configuration
+DB_CONFIG = {
+    'host': 'localhost',
+    'user': 'root',  
+    'password': 'Ra@238gs',  
+    'database': 'aml'  }
+
+# PostgreSQL configuration
+PG_CONFIG = {
+    'host': 'localhost',
+    'user': 'postgres',
+    'password': 'radhika@28',  
+    'database': 'aml'   
+}
+
 # Load the ML models
 try:
     print("\nLoading ML models...")
-    # Load Isolation Forest for transaction monitoring
-    isolation_model = joblib.load('isolation_forest_model.pkl')
-    print("✅ Isolation Forest model loaded successfully")
-    
     # Load Random Forest for risk score prediction
     risk_model = joblib.load('random_forest_model.pkl')
     print("✅ Random Forest model loaded successfully")
+    
+    # Load Isolation Forest for transaction monitoring
+    isolation_model = joblib.load('isolation_forest_model (2).pkl')
+    print("✅ Isolation Forest model loaded successfully")
     
     # Validate Random Forest model features
     expected_features = [
@@ -42,34 +58,19 @@ try:
     if hasattr(risk_model, 'feature_names_in_'):
         model_features = list(risk_model.feature_names_in_)
         if len(model_features) != len(expected_features):
-            print(f"❌ ERROR: Random Forest model expects {len(model_features)} features but we're providing {len(expected_features)}")
+            print(f"ERROR: Random Forest model expects {len(model_features)} features but we're providing {len(expected_features)}")
             risk_model = None
         else:
-            print("✅ Random Forest model feature count validated")
+            print("Random Forest model feature count validated")
     else:
-        print("⚠️ Warning: Random Forest model does not have feature names, assuming correct order")
+        print("Warning: Random Forest model does not have feature names, assuming correct order")
         
 except Exception as e:
-    print(f"❌ Error loading ML models: {e}")
+    print(f" Error loading ML models: {e}")
     import traceback
     print(f"Full traceback:\n{traceback.format_exc()}")
     isolation_model = None
     risk_model = None
-
-# MySQL configuration
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',  
-    'password': 'Ra@238gs',  
-    'database': 'aml'  }
-
-# PostgreSQL configuration
-PG_CONFIG = {
-    'host': 'localhost',
-    'user': 'postgres',
-    'password': 'radhika@28',  # Change this to your PostgreSQL password
-    'database': 'aml'   # Change this to your database name
-}
 
 def get_db_connection():
     """Create a database connection"""
@@ -89,15 +90,15 @@ def get_pg_connection():
         print(f"User: {PG_CONFIG['user']}")
         
         connection = psycopg2.connect(**PG_CONFIG)
-        print("✅ Successfully connected to PostgreSQL database")
+        print("Successfully connected to PostgreSQL database")
         return connection
     except Error as e:
-        print(f"\n❌ ERROR connecting to PostgreSQL Database: {str(e)}")
+        print(f"\n ERROR connecting to PostgreSQL Database: {str(e)}")
         import traceback
         print(f"Full traceback:\n{traceback.format_exc()}")
         return None
     except Exception as e:
-        print(f"\n❌ UNEXPECTED ERROR connecting to PostgreSQL Database: {str(e)}")
+        print(f"\n UNEXPECTED ERROR connecting to PostgreSQL Database: {str(e)}")
         import traceback
         print(f"Full traceback:\n{traceback.format_exc()}")
         return None
@@ -131,139 +132,87 @@ def is_transaction_processed(transaction_id):
         print(f"Error checking transaction: {e}")
         return False
 
-def store_transaction(transaction, is_suspicious):
-    """Store a processed transaction in the database"""
+def store_transaction(transaction):
+    """Store a transaction in the database"""
     try:
         connection = get_db_connection()
-        if connection is None:
-            return
+        if connection:
+            cursor = connection.cursor()
             
-        cursor = connection.cursor()
-        current_timestamp = datetime.now()
-        cursor.execute('''INSERT INTO processed_transactions 
-                         (transaction_id, customer_id, transaction_time, amount, 
-                          transaction_type, description, is_suspicious, processed_at)
-                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
-                      (transaction['transaction_id'], transaction['customer_id'],
-                       transaction['transaction_time'], float(transaction['amount'].replace(',', '')),
-                       transaction['transaction_type'], transaction['description'],
-                       int(is_suspicious), current_timestamp))
-        connection.commit()
-        cursor.close()
-        connection.close()
+            # Check if transaction already exists
+            cursor.execute('SELECT transaction_id FROM processed_transactions WHERE transaction_id = %s', 
+                         (transaction['transaction_id'],))
+            if cursor.fetchone() is None:
+                # Insert new transaction
+                cursor.execute('''
+                    INSERT INTO processed_transactions 
+                    (transaction_id, customer_id, transaction_time, amount, transaction_type, description, is_suspicious)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ''', (
+                    transaction['transaction_id'],
+                    transaction['customer_id'],
+                    transaction['transaction_time'],
+                    transaction['amount'],  # Already a float
+                    transaction['transaction_type'],
+                    transaction['transaction_description'],
+                    transaction.get('is_suspicious', 0)
+                ))
+                connection.commit()
+            cursor.close()
+            connection.close()
     except Error as e:
         print(f"Error storing transaction: {e}")
 
 def load_data():
     """Load the dataset"""
-    return pd.read_csv("bank_transactions_trimmed.csv")
+    df = pd.read_csv("bank_transactions_trimmed.csv")
+    
+    # Convert amount to float and time to datetime with proper format
+    df['amount'] = pd.to_numeric(df['transaction_amount'], errors='coerce')
+    df['transaction_time'] = pd.to_datetime(df['transaction_time'], format='%H:%M:%S')
+    
+    # Drop any rows with invalid data
+    df = df.dropna(subset=['amount', 'transaction_time'])
+    
+    return df
 
 def get_latest_transactions():
-    """Get 10 random transactions from the dataset"""
+    """Get 10 unprocessed transactions from the dataset"""
     # Load fresh data
     df = load_data()
-    print("Total transactions loaded:", len(df))
     
-    # Get 10 random transactions
-    latest_transactions = df.sample(n=10, random_state=None)  # random_state=None ensures different selection each time
-    print("Selected transactions:", len(latest_transactions))
+    # Get all processed transaction IDs from the database
+    try:
+        connection = get_db_connection()
+        if connection:
+            cursor = connection.cursor()
+            cursor.execute('SELECT transaction_id FROM processed_transactions')
+            processed_ids = {str(row[0]) for row in cursor.fetchall()}
+            cursor.close()
+            connection.close()
+        else:
+            processed_ids = set()
+    except Error as e:
+        print(f"Error getting processed transactions: {e}")
+        processed_ids = set()
     
-    # Keep original transaction_time for ML features
-    # Use current_time for display
+    # Convert transaction_id to string for comparison
+    df['transaction_id'] = df['transaction_id'].astype(str)
+    
+    # Filter out already processed transactions
+    unprocessed_df = df[~df['transaction_id'].isin(processed_ids)]
+    
+    if len(unprocessed_df) == 0:
+        print("No new transactions to process")
+        return pd.DataFrame(), df
+    
+    # Get 10 unprocessed transactions
+    latest_transactions = unprocessed_df.head(10).copy()
+    
+    # Add display time
     latest_transactions["display_time"] = datetime.now().strftime("%H:%M:%S")
     
     return latest_transactions, df
-
-def extract_features(transaction, df):
-    """Extract relevant features for ML model using dataset transaction times"""
-    # Get the transaction amount
-    amount = float(str(transaction["transaction_amount"]).replace(',', ''))
-    
-    # Get transaction time from dataset
-    txn_time = datetime.strptime(transaction["transaction_time"], "%H:%M:%S")
-    
-    # Calculate transaction count in last 7 days using dataset times
-    seven_days_ago = txn_time - pd.Timedelta(days=7)
-    transaction_count_7d = len(df[df["transaction_time"].apply(
-        lambda x: datetime.strptime(x, "%H:%M:%S") >= seven_days_ago
-    )])
-    
-    # Calculate days since last transaction using dataset times
-    last_txn = df[df["transaction_time"].apply(
-        lambda x: datetime.strptime(x, "%H:%M:%S") < txn_time
-    )].sort_values("transaction_time", ascending=False)
-    
-    days_since_last_txn = 0
-    if not last_txn.empty:
-        last_txn_time = datetime.strptime(last_txn.iloc[0]["transaction_time"], "%H:%M:%S")
-        days_since_last_txn = (txn_time - last_txn_time).days
-    
-    # Calculate transaction statistics using dataset times
-    thirty_days_ago = txn_time - pd.Timedelta(days=30)
-    seven_days_ago = txn_time - pd.Timedelta(days=7)
-    
-    txn_std_30d = df[df["transaction_time"].apply(
-        lambda x: datetime.strptime(x, "%H:%M:%S") >= thirty_days_ago
-    )]["transaction_amount"].std()
-    
-    txn_mean_7d = df[df["transaction_time"].apply(
-        lambda x: datetime.strptime(x, "%H:%M:%S") >= seven_days_ago
-    )]["transaction_amount"].mean()
-    
-    txn_mean_30d = df[df["transaction_time"].apply(
-        lambda x: datetime.strptime(x, "%H:%M:%S") >= thirty_days_ago
-    )]["transaction_amount"].mean()
-    
-    # Calculate transaction ratio (7d mean / 30d mean)
-    txn_ratio = txn_mean_7d / txn_mean_30d if txn_mean_30d != 0 else 0
-    
-    # Transaction type encoding mapping
-    transaction_type_mapping = {
-        'deposit': 0,
-        'payment': 1,
-        'transfer': 2,
-        'withdrawal': 3
-    }
-    
-    # Transaction description encoding mapping
-    transaction_description_mapping = {
-        'ATM Withdrawal': 0,
-        'Bank Transfer': 1,
-        'Cash Deposit': 2,
-        'Cash Withdrawal': 3,
-        'Check Deposit': 4,
-        'Online Purchase': 5,
-        'Online Transaction': 6,
-        'Online Transfer': 7,
-        'Restaurant Bill': 8,
-        'Salary Deposit': 9,
-        'Utility Bill': 10
-    }
-    
-    # Get encoded values using the mappings
-    transaction_type_encoded = transaction_type_mapping.get(transaction["transaction_type"], 0)  # Default to 0 if not found
-    transaction_description_encoded = transaction_description_mapping.get(transaction["transaction_description"], 0)  # Default to 0 if not found
-    
-    return [
-        amount,                    # transaction_amount
-        transaction_type_encoded,  # transaction_type_encoded
-        transaction_description_encoded,  # transaction_description_encoded
-        transaction_count_7d,      # transaction_count_7d
-        days_since_last_txn,       # days_since_last_txn
-        txn_std_30d,              # txn_std_30d
-        txn_mean_7d,              # txn_mean_7d
-        txn_mean_30d,             # txn_mean_30d
-        txn_ratio                 # txn_ratio
-    ]
-
-def predict_suspicious_transactions(transactions, df):
-    """Pass transactions to Isolation Forest model and get predictions"""
-    features = [extract_features(t, df) for _, t in transactions.iterrows()]
-    # Isolation Forest returns -1 for anomalies (suspicious) and 1 for normal transactions
-    predictions = isolation_model.predict(features)
-    # Convert -1/1 to 1/0 for consistency with the frontend
-    transactions["is_suspicious"] = (predictions == -1).astype(int)
-    return transactions
 
 def calculate_features(customer_id, pg_connection):
     """Calculate derived features for the ML model"""
@@ -377,6 +326,141 @@ def check_transaction_dates(customer_id, pg_connection):
         print(f"Error checking transaction dates: {e}")
         return None
 
+def extract_features(transaction, df):
+    """Extract relevant features for Isolation Forest model"""
+    try:
+        # Get the transaction amount
+        amount = float(str(transaction["amount"]).replace(',', ''))
+        
+        # Get transaction time
+        txn_time = pd.to_datetime(transaction["transaction_time"])
+        
+        # Get customer's transactions
+        customer_transactions = df[df['customer_id'] == transaction['customer_id']].copy()
+        customer_transactions['transaction_time'] = pd.to_datetime(customer_transactions['transaction_time'])
+        customer_transactions['amount'] = customer_transactions['amount'].apply(lambda x: float(str(x).replace(',', '')))
+        
+        # Filter transactions before current transaction
+        historical_transactions = customer_transactions[customer_transactions['transaction_time'] < txn_time]
+        
+        if historical_transactions.empty:
+            return [
+                amount,                    # transaction_amount
+                0,                         # transaction_type_encoded
+                0,                         # transaction_description_encoded
+                0,                         # transaction_count_7d
+                0,                         # days_since_last_txn
+                0,                         # txn_std_30d
+                0,                         # txn_mean_7d
+                0,                         # txn_mean_30d
+                0                          # txn_ratio
+            ]
+        
+        # Calculate transaction count in last 7 days
+        seven_days_ago = txn_time - pd.Timedelta(days=7)
+        recent_transactions = historical_transactions[historical_transactions['transaction_time'] >= seven_days_ago]
+        transaction_count_7d = len(recent_transactions)
+        
+        # Calculate days since last transaction
+        if not historical_transactions.empty:
+            last_txn_time = historical_transactions['transaction_time'].max()
+            days_since_last_txn = (txn_time - last_txn_time).days
+        else:
+            days_since_last_txn = 0
+        
+        # Calculate transaction statistics
+        thirty_days_ago = txn_time - pd.Timedelta(days=30)
+        recent_30d = historical_transactions[historical_transactions['transaction_time'] >= thirty_days_ago]
+        recent_7d = historical_transactions[historical_transactions['transaction_time'] >= seven_days_ago]
+        
+        # Calculate statistics
+        txn_std_30d = recent_30d['amount'].std() if not recent_30d.empty else 0
+        txn_mean_7d = recent_7d['amount'].mean() if not recent_7d.empty else 0
+        txn_mean_30d = recent_30d['amount'].mean() if not recent_30d.empty else 0
+        
+        # Calculate transaction ratio
+        txn_ratio = txn_mean_7d / txn_mean_30d if txn_mean_30d != 0 else 0
+        
+        # Transaction type encoding
+        transaction_type_mapping = {
+            'deposit': 0,
+            'payment': 1,
+            'transfer': 2,
+            'withdrawal': 3
+        }
+        
+        # Transaction description encoding
+        transaction_description_mapping = {
+            'ATM Withdrawal': 0,
+            'Bank Transfer': 1,
+            'Cash Deposit': 2,
+            'Cash Withdrawal': 3,
+            'Check Deposit': 4,
+            'Online Purchase': 5,
+            'Online Transaction': 6,
+            'Online Transfer': 7,
+            'Restaurant Bill': 8,
+            'Salary Deposit': 9,
+            'Utility Bill': 10
+        }
+        
+        transaction_type_encoded = transaction_type_mapping.get(transaction["transaction_type"].lower(), 0)
+        transaction_description_encoded = transaction_description_mapping.get(transaction["transaction_description"], 0)
+        
+        # Debug information
+        print(f"\nFeature values for transaction {transaction['transaction_id']}:")
+        print(f"Amount: {amount}")
+        print(f"Type: {transaction['transaction_type']} -> {transaction_type_encoded}")
+        print(f"Description: {transaction['transaction_description']} -> {transaction_description_encoded}")
+        print(f"Transaction count 7d: {transaction_count_7d}")
+        print(f"Days since last: {days_since_last_txn}")
+        print(f"Std 30d: {txn_std_30d}")
+        print(f"Mean 7d: {txn_mean_7d}")
+        print(f"Mean 30d: {txn_mean_30d}")
+        print(f"Ratio: {txn_ratio}")
+        
+        return [
+            amount,                    # transaction_amount
+            transaction_type_encoded,  # transaction_type_encoded
+            transaction_description_encoded,  # transaction_description_encoded
+            transaction_count_7d,      # transaction_count_7d
+            days_since_last_txn,      # days_since_last_txn
+            txn_std_30d,              # txn_std_30d
+            txn_mean_7d,              # txn_mean_7d
+            txn_mean_30d,             # txn_mean_30d
+            txn_ratio                 # txn_ratio
+        ]
+    except Exception as e:
+        print(f"Error extracting features: {str(e)}")
+        import traceback
+        print(f"Full traceback:\n{traceback.format_exc()}")
+        return None
+
+def predict_suspicious_transactions(transactions, df):
+    """Use Isolation Forest to predict suspicious transactions"""
+    features = []
+    for _, transaction in transactions.iterrows():
+        transaction_features = extract_features(transaction, df)
+        if transaction_features:
+            features.append(transaction_features)
+    
+    if not features:
+        return transactions
+    
+    # Get predictions from Isolation Forest
+    predictions = isolation_model.predict(features)
+    
+    # Debug: Print the predictions
+    print("\nPredictions from Isolation Forest:")
+    print(f"Raw predictions: {predictions}")
+    print(f"Number of suspicious transactions: {sum(predictions == -1)}")
+    print(f"Number of normal transactions: {sum(predictions == 1)}")
+    
+    # Isolation Forest returns -1 for anomalies (suspicious) and 1 for normal transactions
+    transactions["is_suspicious"] = (predictions == -1).astype(int)
+    
+    return transactions
+
 @app.route("/")
 def index():
     """Serve the index page"""
@@ -405,45 +489,45 @@ def generate_report():
 
 @app.route("/get-transactions")
 def get_transactions():
+    """Get latest transactions"""
     try:
         latest_transactions, df = get_latest_transactions()
         
-        # Get predictions for new transactions using dataset times
+        if latest_transactions.empty:
+            return jsonify({'transactions': [], 'message': 'No new transactions'})
+        
+        # Process each transaction with Isolation Forest
         latest_transactions = predict_suspicious_transactions(latest_transactions, df)
         
-        # Convert to list of dictionaries for JSON response
+        # Format transactions for response
         transactions_list = []
-        
-        # Process transactions in the exact order they appear
-        for _, row in latest_transactions.iterrows():
-            transaction = {
-                'customer_id': str(row["customer_id"]),
-                'transaction_id': str(row["transaction_id"]),
-                'transaction_time': row['display_time'],  # Use current time for display
-                'amount': f'{row["transaction_amount"]:,.2f}',
-                'transaction_type': row['transaction_type'],
-                'description': row['transaction_description'],
-                'is_suspicious': int(row["is_suspicious"])
+        for _, transaction in latest_transactions.iterrows():
+            transaction_dict = {
+                'transaction_id': str(transaction['transaction_id']),
+                'customer_id': str(transaction['customer_id']),
+                'transaction_time': transaction.get('display_time', transaction['transaction_time'].strftime('%H:%M:%S')),
+                'amount': transaction['amount'],  # Keep as float for database
+                'transaction_type': transaction['transaction_type'],
+                'transaction_description': transaction['transaction_description'],
+                'is_suspicious': int(transaction['is_suspicious'])
             }
             
-            # Add to list regardless of processing status
-            transactions_list.append(transaction)
+            # Store the transaction
+            store_transaction(transaction_dict)
             
-            # Only store if not already processed
-            if not is_transaction_processed(transaction['transaction_id']):
-                # Store with original transaction time from dataset
-                store_transaction({
-                    **transaction,
-                    'transaction_time': row['transaction_time']  # Use original time for storage
-                }, transaction['is_suspicious'])
-                print("Added transaction:", transaction['transaction_id'])
-            else:
-                print("Transaction already processed:", transaction['transaction_id'])
+            # Format amount for display only after storing
+            transaction_dict['amount'] = f"{transaction['amount']:,.2f}"
+            transactions_list.append(transaction_dict)
         
-        print("Total transactions in response:", len(transactions_list))
-        return jsonify(transactions_list)
+        return jsonify({
+            'transactions': transactions_list,
+            'message': f'Found {len(transactions_list)} new transactions'
+        })
+        
     except Exception as e:
-        print("Error in get_transactions:", str(e))
+        print(f"Error in get_transactions: {str(e)}")
+        import traceback
+        print(f"Full traceback:\n{traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @app.route("/search-customer", methods=['POST'])
@@ -507,47 +591,29 @@ def search_customer():
 
 @app.route("/calculate-risk-score", methods=['POST'])
 def calculate_risk_score():
+    """Calculate risk score for a customer"""
     try:
-        customer_id = request.form.get('customer_id')
+        data = request.get_json()
+        customer_id = data.get('customer_id')
         
         if not customer_id:
             return jsonify({'error': 'Customer ID is required'}), 400
-
+            
+        # Get PostgreSQL connection
         connection = get_pg_connection()
-        if connection is None:
-            return jsonify({'error': 'Database connection failed'}), 500
-        
-        # Verify customer exists
+        if not connection:
+            return jsonify({'error': 'Failed to connect to database'}), 500
+            
         cursor = connection.cursor()
-        cursor.execute('''
-            SELECT customer_id, name, annual_income, age
-            FROM customers 
-            WHERE customer_id = %s
-        ''', (customer_id,))
-        customer_data = cursor.fetchone()
         
-        if not customer_data:
-            return jsonify({'error': 'Customer not found'}), 404
-        
-        # Check if customer has transactions
-        cursor.execute('''
-            SELECT COUNT(*), 
-                   MIN(transaction_date),
-                   MAX(transaction_date)
-            FROM transactions 
-            WHERE customer_id = %s
-        ''', (customer_id,))
-        txn_count, first_txn, last_txn = cursor.fetchone()
-        
-        if txn_count == 0:
-            return jsonify({'error': 'No transactions found for this customer'}), 400
-        
-        # Calculate features
+        # Calculate features for risk score prediction
         features = calculate_features(customer_id, connection)
-        if features is None:
-            return jsonify({'error': 'Could not calculate features for this customer'}), 400
-
-        # Convert features to DataFrame for model prediction
+        if not features:
+            cursor.close()
+            connection.close()
+            return jsonify({'error': 'Failed to calculate features'}), 500
+            
+        # Order features as expected by the model
         feature_order = [
             'annual_income',
             'total_transactions',
@@ -588,7 +654,7 @@ def calculate_risk_score():
         })
         
     except Exception as e:
-        print(f"Error in calculate_risk_score: {str(e)}")
+        print(f"Error calculating risk score: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":

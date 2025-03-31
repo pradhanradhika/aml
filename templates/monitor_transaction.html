@@ -526,7 +526,7 @@
                     throw new Error(data.error || 'Failed to fetch transactions');
                 }
                 
-                if (!Array.isArray(data)) {
+                if (!data.transactions || !Array.isArray(data.transactions)) {
                     throw new Error('Invalid response format from server');
                 }
                 
@@ -534,12 +534,12 @@
                 const tbody = document.querySelector('#transactionTable tbody');
                 tbody.innerHTML = '';
                 
-                if (data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No transactions found</td></tr>';
+                if (data.transactions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No new transactions found</td></tr>';
                     return;
                 }
                 
-                data.forEach(tx => {
+                data.transactions.forEach(tx => {
                     const row = document.createElement('tr');
                     if (tx.is_suspicious === 1) {
                         row.classList.add('suspicious');
@@ -548,10 +548,10 @@
                     row.innerHTML = `
                         <td>${tx.customer_id}</td>
                         <td>${tx.transaction_id}</td>
-                        <td>${tx.transaction_time}</td>
+                        <td>${tx.display_time || tx.transaction_time}</td>
                         <td>${tx.amount}</td>
                         <td>${tx.transaction_type}</td>
-                        <td>${tx.description}</td>
+                        <td>${tx.description || tx.transaction_description}</td>
                         <td>${tx.is_suspicious === 1 ? '<span class="suspicious-badge">Suspicious</span>' : '<span class="safe-badge">Safe</span>'}</td>
                     `;
                     tbody.appendChild(row);
@@ -560,7 +560,7 @@
             } catch (error) {
                 console.error('Error fetching transactions:', error);
                 const tbody = document.querySelector('#transactionTable tbody');
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ff4444;">Error: ${error.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #ff4444;">Error: ${error.message}</td></tr>`;
             } finally {
                 button.classList.remove('loading');
             }
