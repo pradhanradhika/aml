@@ -168,7 +168,7 @@
         </form>
 
         <!-- Sign Up Form -->
-        <form id="signupForm" onsubmit="handleSignup(event)">
+        <form action="{{ url_for('dashboard') }}" method="POST" id="signupForm">
             <div class="form-group">
                 <label for="signupUsername">Username</label>
                 <input type="text" id="signupUsername" name="username" placeholder="Choose a username" required>

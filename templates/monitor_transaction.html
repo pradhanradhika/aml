@@ -1,4 +1,3 @@
-<!-- monitor_transaction -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,24 +8,74 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(125deg, #1a237e, #0d47a1, #01579b);
             margin: 0;
             padding: 0;
             min-height: 100vh;
             color: white;
+            background: #000428;
+            overflow-x: hidden;
+        }
+
+        .animated-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                linear-gradient(45deg, #000428 0%, #004e92 100%),
+                radial-gradient(circle at 50% 0%, #1a2980 0%, #26d0ce 100%);
+            overflow: hidden;
+        }
+
+        .grid {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background-image: 
+                linear-gradient(rgba(38, 208, 206, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(38, 208, 206, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: rotate(45deg);
+            animation: gridMove 20s linear infinite;
+            top: -50%;
+            left: -50%;
+        }
+
+        @keyframes gridMove {
+            0% { transform: rotate(45deg) translateY(0); }
+            100% { transform: rotate(45deg) translateY(-100px); }
         }
 
         .container {
             margin: 40px auto;
             padding: 0 40px;
             max-width: 95%;
+            position: relative;
+            z-index: 1;
         }
 
-        h2 {
-            color: #00bcd4;
-            font-size: 2.2em;
-            margin-bottom: 30px;
+        .main-title {
             text-align: center;
+            margin: 40px 0;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .main-title h1 {
+            font-size: 2.5em;
+            margin: 0;
+            background: linear-gradient(45deg, #26d0ce, #1a2980);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-title p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 10px;
+            font-size: 1.1em;
         }
 
         .fetch-section {
@@ -35,7 +84,7 @@
         }
 
         #fetchButton {
-            padding: 12px 24px;
+            padding: 15px 30px;
             background: linear-gradient(45deg, #2196f3, #00bcd4);
             border: none;
             border-radius: 8px;
@@ -46,11 +95,34 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            box-shadow: 0 4px 15px rgba(0, 188, 212, 0.2);
         }
 
         #fetchButton:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 188, 212, 0.3);
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
         }
 
         table {
@@ -61,6 +133,8 @@
             border-radius: 12px;
             overflow: hidden;
             backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
         }
 
         th, td {
@@ -73,18 +147,26 @@
             background: rgba(0, 188, 212, 0.1);
             font-weight: 600;
             color: #00bcd4;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 1px;
+        }
+
+        tr {
+            transition: all 0.3s ease;
         }
 
         tr:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
         }
 
         tr.suspicious {
-            background: rgba(255, 0, 0, 0.1);
+            background: rgba(255, 68, 68, 0.15);
         }
         
         tr.suspicious:hover {
-            background: rgba(255, 0, 0, 0.15);
+            background: rgba(255, 68, 68, 0.2);
         }
 
         #fetchButton.loading {
@@ -101,470 +183,131 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Animated background pattern */
-        body::before {
-            content: '';
-            position: fixed;
-            
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                linear-gradient(217deg, rgba(255,0,0,.1), rgba(255,0,0,0) 70.71%),
-                linear-gradient(127deg, rgba(0,255,0,.1), rgba(0,255,0,0) 70.71%),
-                linear-gradient(336deg, rgba(0,0,255,.1), rgba(0,0,255,0) 70.71%);
-            z-index: -2;
-            animation: gradientMove 15s ease infinite;
-        }
-
-        /* Hexagon grid background */
-        body::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 30px 30px;
-            transform: rotate(45deg);
-            z-index: -1;
-            animation: gridMove 20s linear infinite;
-        }
-
-        @keyframes gradientMove {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-
-        @keyframes gridMove {
-            0% {
-                transform: rotate(45deg) translateY(0);
-            }
-            100% {
-                transform: rotate(45deg) translateY(-100px);
-            }
-        }
-
-        .container {
-            margin: 40px auto;
-            padding: 0 40px;
-            max-width: 95%;
-        }
-
-        h2 {
-            color: #00bcd4;
-            font-size: 2.2em;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .fetch-section {
-            margin-bottom: 20px;
-            text-align: right;
-        }
-
-        #fetchButton {
-            padding: 12px 24px;
-            background: linear-gradient(45deg, #2196f3, #00bcd4);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            color: white;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-        }
-
-        th, td {
-            padding: 15px 20px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        th {
-            background: rgba(0, 188, 212, 0.1);
-            font-weight: 600;
-            color: #00bcd4;
-        }
-
-        tr:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        /* Column widths */
-        th:nth-child(1), td:nth-child(1) { width: 10%; }  /* Customer ID */
-        th:nth-child(2), td:nth-child(2) { width: 15%; }  /* Transaction ID */
-        th:nth-child(3), td:nth-child(3) { width: 15%; }  /* Transaction Time */
-        th:nth-child(4), td:nth-child(4) { width: 10%; }  /* Amount */
-        th:nth-child(5), td:nth-child(5) { width: 15%; }  /* Transaction Type */
-        th:nth-child(6), td:nth-child(6) { width: 35%; }  /* Description */
-        th:nth-child(7), td:nth-child(7) { width: 10%; }  /* ML Result */
-
-        /* Update particles to be fixed */
-        .particles {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .particle {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            animation: float 8s infinite ease-in-out;
-        }
-
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0) translateX(0);
-                opacity: 0;
-            }
-            50% {
-                transform: translateY(-100vh) translateX(100px);
-                opacity: 0.8;
-            }
-        }
-
-        /* Update back button to be fixed */
-        .back-button {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 30px;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-
-        .back-button:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateX(-5px);
-        }
-
-        .status-badge {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            background: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .status-badge::before {
-            content: '';
-            width: 8px;
-            height: 8px;
-            background: #4CAF50;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.5); opacity: 0.5; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        /* Input validation styling */
-        .form-group input:invalid,
-        .form-group select:invalid {
-            border-color: rgba(255, 82, 82, 0.4);
-        }
-
-        .form-group input:valid,
-        .form-group select:valid {
-            border-color: rgba(76, 175, 80, 0.4);
-        }
-
-        /* Update media queries */
-        @media (max-width: 600px) {
-            .container {
-                margin: 40px auto;
-                width: 95%;
-                padding: 25px;
-            }
-
-            body {
-                padding: 10px;
-            }
-
-            .form-group input, 
-            .form-group select,
-            button[type="submit"] {
-                padding: 12px;
-            }
-
-            .back-button {
-                top: 10px;
-                left: 10px;
-                padding: 8px 15px;
-                font-size: 14px;
-            }
-        }
-
-        /* Add loading animation */
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .loading {
-            position: relative;
-            opacity: 0.7;
-            pointer-events: none;
-        }
-
-        .loading::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            margin: -10px 0 0 -10px;
-            border: 2px solid #ffffff;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: rotate 0.8s linear infinite;
-        }
-
-        .transaction-details {
-            margin-top: 30px;
-            padding: 25px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        .transaction-details h3 {
-            color: #00bcd4;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .analysis-result {
-            text-align: center;
-            padding: 20px;
-            margin-bottom: 20px;
-            background: rgba(255, 68, 68, 0.1);
-            border-radius: 12px;
-        }
-
-        .result-icon {
-            font-size: 48px;
-            color: #ff4444;
-            margin-bottom: 15px;
-        }
-
-        .result-icon.safe {
-            color: #00C851;
-        }
-
-        .result-status {
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff4444;
-            margin-bottom: 10px;
-        }
-
-        .result-status.safe {
-            color: #00C851;
-        }
-
-        .result-score {
-            font-size: 18px;
-            color: #fff;
-        }
-
-        .analysis-details {
-            display: grid;
-            gap: 15px;
-        }
-
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-        }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Add styles for ML result badges */
-        .suspicious-badge {
-            background-color: rgba(255, 0, 0, 0.2);
-            color: #ff4444;
-            padding: 4px 8px;
+        .transaction-details {
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
-        .safe-badge {
-            background-color: rgba(76, 175, 80, 0.2);
-            color: #4CAF50;
-            padding: 4px 8px;
+        .no-transactions {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
+            margin-top: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 <body>
-    <div class="particles"></div>
+    <div class="animated-background">
+        <div class="grid"></div>
+    </div>
     <a href="/" class="back-button">Back to Home</a>
     <div class="container">
-        <div class="status-badge">System Active</div>
-        <h2>Monitor Transactions</h2>
-        
+        <div class="main-title">
+            <h1>Transaction Monitoring</h1>
+            <p>Real-time monitoring and analysis of financial transactions</p>
+        </div>
+
         <div class="fetch-section">
             <button id="fetchButton" onclick="fetchTransactions()">
-                <i class="fas fa-sync-alt"></i> Refresh Transactions
+                <i class="fas fa-sync-alt"></i>
+                Fetch New Transactions
             </button>
         </div>
 
-        <table id="transactionTable">
-            <thead>
-                <tr>
-                    <th>Customer ID</th>
-                    <th>Transaction ID</th>
-                    <th>Transaction Time</th>
-                    <th>Amount</th>
-                    <th>Transaction Type</th>
-                    <th>Description</th>
-                    <th>ML Result</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Transactions will be loaded here -->
-            </tbody>
-        </table>
+        <div id="transactionsTableContainer">
+            <!-- Table will be populated here -->
+        </div>
     </div>
 
     <script>
-        // Create particle effect
         function createParticles() {
-            const particlesContainer = document.querySelector('.particles');
-            const particleCount = 50;
-
-            for (let i = 0; i < particleCount; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = Math.random() * 100 + 'vw';
-                particle.style.animationDelay = Math.random() * 5 + 's';
-                particle.style.opacity = Math.random() * 0.5;
-                particlesContainer.appendChild(particle);
-            }
+            // Removed particle effect as we now have the grid animation
         }
 
-        // Initialize particles
-        createParticles();
+        function fetchTransactions() {
+            const button = document.getElementById('fetchButton');
+            const container = document.getElementById('transactionsTableContainer');
+            
+            // Add loading state
+            button.classList.add('loading');
+            
+            fetch('/get-transactions')
+                .then(response => response.json())
+                .then(data => {
+                    button.classList.remove('loading');
+                    
+                    if (data.transactions && data.transactions.length > 0) {
+                        // Create table
+                        const table = document.createElement('table');
+                        table.innerHTML = `
+                            <thead>
+                                <tr>
+                                    <th>Transaction ID</th>
+                                    <th>Customer ID</th>
+                                    <th>Time</th>
+                                    <th>Amount</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.transactions.map(transaction => `
+                                    <tr class="${transaction.is_suspicious ? 'suspicious' : ''}">
+                                        <td>${transaction.transaction_id}</td>
+                                        <td>${transaction.customer_id}</td>
+                                        <td>${transaction.transaction_time}</td>
+                                        <td>$${transaction.amount}</td>
+                                        <td>${transaction.transaction_type}</td>
+                                        <td>${transaction.transaction_description}</td>
+                                        <td>${transaction.is_suspicious ? 
+                                            '<span style="color: #ff4444;"><i class="fas fa-exclamation-triangle"></i> Suspicious</span>' : 
+                                            '<span style="color: #4CAF50;"><i class="fas fa-check-circle"></i> Normal</span>'
+                                        }</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        `;
+                        container.innerHTML = '';
+                        container.appendChild(table);
+                    } else {
+                        container.innerHTML = `
+                            <div class="no-transactions">
+                                <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                                <p>${data.message || 'No transactions available'}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    button.classList.remove('loading');
+                    container.innerHTML = `
+                        <div class="no-transactions" style="color: #ff4444;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p>Error fetching transactions: ${error.message}</p>
+                        </div>
+                    `;
+                });
+        }
 
         // Load transactions when page loads
         window.onload = function() {
-            const isLoggedIn = localStorage.getItem('isLoggedIn');
-            if (!isLoggedIn) {
-                window.location.href = 'login.html';
-            } else {
-                fetchTransactions(); // Fetch transactions immediately
-            }
-        }
-
-        async function fetchTransactions() {
-            const button = document.getElementById('fetchButton');
-            button.classList.add('loading');
-            
-            try {
-                const response = await fetch('/get-transactions');
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || 'Failed to fetch transactions');
-                }
-                
-                if (!data.transactions || !Array.isArray(data.transactions)) {
-                    throw new Error('Invalid response format from server');
-                }
-                
-                // Clear existing rows and add new transactions
-                const tbody = document.querySelector('#transactionTable tbody');
-                tbody.innerHTML = '';
-                
-                if (data.transactions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No new transactions found</td></tr>';
-                    return;
-                }
-                
-                data.transactions.forEach(tx => {
-                    const row = document.createElement('tr');
-                    if (tx.is_suspicious === 1) {
-                        row.classList.add('suspicious');
-                    }
-                    
-                    row.innerHTML = `
-                        <td>${tx.customer_id}</td>
-                        <td>${tx.transaction_id}</td>
-                        <td>${tx.display_time || tx.transaction_time}</td>
-                        <td>${tx.amount}</td>
-                        <td>${tx.transaction_type}</td>
-                        <td>${tx.description || tx.transaction_description}</td>
-                        <td>${tx.is_suspicious === 1 ? '<span class="suspicious-badge">Suspicious</span>' : '<span class="safe-badge">Safe</span>'}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-                
-            } catch (error) {
-                console.error('Error fetching transactions:', error);
-                const tbody = document.querySelector('#transactionTable tbody');
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #ff4444;">Error: ${error.message}</td></tr>`;
-            } finally {
-                button.classList.remove('loading');
-            }
-        }
+            fetchTransactions();
+        };
     </script>
 </body>
 </html>

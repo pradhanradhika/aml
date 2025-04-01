@@ -9,17 +9,74 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(125deg, #1a237e, #0d47a1, #01579b);
             margin: 0;
-            padding: 20px;
+            padding: 0;
             min-height: 100vh;
             color: white;
+            background: #000428;
+            overflow-x: hidden;
+        }
+
+        .animated-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                linear-gradient(45deg, #000428 0%, #004e92 100%),
+                radial-gradient(circle at 50% 0%, #1a2980 0%, #26d0ce 100%);
+            overflow: hidden;
+        }
+
+        .grid {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background-image: 
+                linear-gradient(rgba(38, 208, 206, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(38, 208, 206, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: rotate(45deg);
+            animation: gridMove 20s linear infinite;
+            top: -50%;
+            left: -50%;
+        }
+
+        @keyframes gridMove {
+            0% { transform: rotate(45deg) translateY(0); }
+            100% { transform: rotate(45deg) translateY(-100px); }
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-title {
+            text-align: center;
+            margin: 40px 0;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .main-title h1 {
+            font-size: 2.5em;
+            margin: 0;
+            background: linear-gradient(45deg, #26d0ce, #1a2980);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-title p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 10px;
+            font-size: 1.1em;
         }
 
         .back-button {
@@ -34,6 +91,8 @@
             cursor: pointer;
             text-decoration: none;
             transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .back-button:hover {
@@ -42,7 +101,7 @@
         }
 
         .search-section {
-            margin: 60px 0 40px;
+            margin: 40px 0;
             animation: fadeIn 0.5s ease-out forwards;
         }
 
@@ -50,20 +109,28 @@
             display: flex;
             gap: 10px;
             background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
+            padding: 20px;
             border-radius: 12px;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .search-container input {
             flex: 1;
-            padding: 12px 20px;
+            padding: 15px 20px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.1);
             color: white;
             font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-container input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
         }
 
         .search-container input::placeholder {
@@ -71,7 +138,7 @@
         }
 
         .search-container button {
-            padding: 12px 24px;
+            padding: 15px 30px;
             background: linear-gradient(45deg, #2196f3, #00bcd4);
             border: none;
             border-radius: 8px;
@@ -97,6 +164,7 @@
             margin-top: 30px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             animation: fadeIn 0.5s ease-out;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .customer-header {
@@ -117,18 +185,24 @@
 
         .info-item {
             background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 8px;
+            padding: 20px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .info-item:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .info-label {
             font-size: 14px;
             color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .info-value {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 500;
         }
 
@@ -139,6 +213,8 @@
             border-radius: 8px;
             margin-top: 20px;
             text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 68, 68, 0.2);
         }
 
         @keyframes fadeIn {
@@ -177,7 +253,7 @@
         }
 
         .risk-score-button {
-            padding: 12px 24px;
+            padding: 15px 30px;
             background: linear-gradient(45deg, #2196f3, #00bcd4);
             border: none;
             border-radius: 8px;
@@ -202,93 +278,61 @@
             padding: 30px;
             margin-top: 30px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        .risk-score-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .risk-score-main {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 30px;
-            margin-top: 20px;
-        }
-
-        .risk-score-circle {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            border: 3px solid #00bcd4;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .risk-score-value {
-            font-size: 36px;
+            font-size: 48px;
             font-weight: bold;
-            color: #00bcd4;
+            margin: 20px 0;
+            background: linear-gradient(45deg, #26d0ce, #1a2980);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .risk-score-label {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.7);
+        .risk-factors {
+            margin-top: 20px;
+            text-align: left;
         }
 
-        .risk-level-badge {
-            font-size: 24px;
-            font-weight: bold;
-            padding: 10px 20px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 30px;
-        }
-
-        .feature-item {
+        .risk-factor-item {
             background: rgba(255, 255, 255, 0.05);
             padding: 15px;
             border-radius: 8px;
-            text-align: center;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
         }
 
-        .feature-label {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 5px;
-        }
-
-        .feature-value {
-            font-size: 16px;
-            font-weight: 500;
+        .risk-factor-item:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
         }
     </style>
 </head>
 <body>
+    <div class="animated-background">
+        <div class="grid"></div>
+    </div>
     <div class="container">
         <a href="/" class="back-button">Back to Home</a>
         
+        <div class="main-title">
+            <h1>Risk Score Analysis</h1>
+            <p>Analyze customer risk profiles and detect potential financial threats</p>
+        </div>
+
         <div class="search-section">
             <div class="search-container">
                 <input type="text" id="customerId" placeholder="Enter Customer ID" required>
-                <button onclick="searchCustomer()" id="searchButton">
-                    <i class="fas fa-search"></i> Search
+                <button id="searchButton" onclick="searchCustomer()">
+                    <i class="fas fa-search"></i>
+                    Search
                 </button>
             </div>
         </div>
 
-        <div id="customerDetails" class="customer-details" style="display: none;">
+        <div id="customerDetails" style="display: none;" class="customer-details">
             <div class="customer-header">
                 <h2>Customer Details</h2>
                 <div class="risk-badge" id="riskBadge"></div>

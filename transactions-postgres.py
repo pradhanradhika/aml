@@ -11,7 +11,7 @@ conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
 # Load the CSV file
-csv_file = "C:/Users/Radhika/Downloads/transactions_updated.csv"
+csv_file = "C:\Users\Radhika\Downloads\transactions_updated.csv"
 df = pd.read_csv(csv_file)
 
 # Ensure column names match exactly with your PostgreSQL table

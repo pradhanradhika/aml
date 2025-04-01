@@ -312,7 +312,7 @@
                 <h3>Risk Scores</h3>
             </div>
 
-            <div class="feature-box" onclick="window.location.href='/generate-report'">
+            <div class="feature-box" onclick="openReportWindow()">
                 <i class="fas fa-file-alt feature-icon"></i>
                 <h3>Generate Report</h3>
             </div>
@@ -340,6 +340,15 @@
     <script>
         function goToMonitorTransaction() {
             window.location.href = '/monitor-transactions';
+        }
+
+        function openReportWindow() {
+            const width = 400;
+            const height = 300;
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
+            window.open('/select-report', 'Report Selection', 
+                `width=${width},height=${height},left=${left},top=${top},resizable=no`);
         }
 
         function createParticles() {

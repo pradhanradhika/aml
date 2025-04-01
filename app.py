@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file, redirect, url_for
 from flask_cors import CORS
 import pandas as pd
 import joblib
@@ -8,6 +8,11 @@ from psycopg2 import Error
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import os
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from io import BytesIO
+import csv
 
 app = Flask(__name__)
 CORS(app)
@@ -157,7 +162,7 @@ def load_data():
     try:
         print("\nLoading transaction data from CSV...")
         # Load CSV file with explicit encoding
-        df = pd.read_csv("bank_transactions_trimmed.csv", encoding='utf-8')
+        df = pd.read_csv("C:/Users/Radhika/.vscode/AML/bank_transactions_trimmed.csv", encoding='utf-8')
         
         # Clean column names (remove any whitespace)
         df.columns = df.columns.str.strip()
@@ -497,14 +502,15 @@ def predict_suspicious_transactions(transactions, df):
 
 @app.route("/")
 def index():
-    """Serve the index page"""
     return render_template("index.html")
 
 @app.route("/login")
-@app.route("/login.html")
 def login():
-    """Serve the login page"""
     return render_template("login.html")
+
+@app.route("/dashboard")
+def dashboard():
+    return render_template("index.html")
 
 @app.route("/monitor-transactions")
 def monitor_transactions():
@@ -725,7 +731,156 @@ def calculate_risk_score():
         print(f"Full traceback:\n{traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
+@app.route("/select-report")
+def select_report():
+    """Display report type selection page"""
+    return render_template('select_report.html')
+
+@app.route("/generate-pdf")
+def generate_pdf():
+    """Generate PDF report of suspicious transactions"""
+    try:
+        # Connect to database
+        conn = get_pg_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        cursor = conn.cursor()
+        
+        # Fetch suspicious transactions
+        cursor.execute("""
+            SELECT transaction_id, customer_id, transaction_time, amount, 
+                   transaction_type, transaction_description
+            FROM monitored_transactions 
+            WHERE is_suspicious = true 
+            ORDER BY transaction_time DESC
+        """)
+        
+        suspicious_transactions = cursor.fetchall()
+        
+        if not suspicious_transactions:
+            return jsonify({'message': 'No suspicious transactions found'}), 404
+        
+        # Create PDF using ReportLab
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        
+        # Define table data
+        data = [['Transaction ID', 'Customer ID', 'Time', 'Amount', 'Type', 'Description']]
+        for transaction in suspicious_transactions:
+            data.append([
+                str(transaction[0]),
+                str(transaction[1]),
+                str(transaction[2]),
+                f"${transaction[3]:,.2f}",
+                transaction[4],
+                transaction[5]
+            ])
+        
+        # Create table
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        elements.append(table)
+        doc.build(elements)
+        
+        # Prepare response
+        buffer.seek(0)
+        cursor.close()
+        conn.close()
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'suspicious_transactions_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error generating PDF report: {str(e)}")
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route("/generate-csv")
+def generate_csv():
+    """Generate CSV report of suspicious transactions"""
+    try:
+        # Connect to database
+        conn = get_pg_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        cursor = conn.cursor()
+        
+        # Fetch suspicious transactions
+        cursor.execute("""
+            SELECT transaction_id, customer_id, transaction_time, amount, 
+                   transaction_type, transaction_description
+            FROM monitored_transactions 
+            WHERE is_suspicious = true 
+            ORDER BY transaction_time DESC
+        """)
+        
+        suspicious_transactions = cursor.fetchall()
+        
+        if not suspicious_transactions:
+            return jsonify({'message': 'No suspicious transactions found'}), 404
+        
+        # Create CSV in memory
+        output = BytesIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Transaction ID', 'Customer ID', 'Time', 'Amount', 'Type', 'Description'])
+        
+        # Write data
+        for transaction in suspicious_transactions:
+            writer.writerow([
+                str(transaction[0]),
+                str(transaction[1]),
+                str(transaction[2]),
+                f"${transaction[3]:,.2f}",
+                transaction[4],
+                transaction[5]
+            ])
+        
+        # Prepare response
+        output.seek(0)
+        cursor.close()
+        conn.close()
+        
+        return send_file(
+            output,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'suspicious_transactions_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        )
+        
+    except Exception as e:
+        print(f"Error generating CSV report: {str(e)}")
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
-    # Initialize the database when the app starts
-    init_db()
     app.run(debug=True)
