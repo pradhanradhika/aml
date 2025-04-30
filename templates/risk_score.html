@@ -281,33 +281,97 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
+        .risk-score-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .risk-score-main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .risk-score-circle {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(38, 208, 206, 0.1), rgba(26, 41, 128, 0.1));
+            border: 2px solid rgba(38, 208, 206, 0.3);
+            box-shadow: 0 4px 15px rgba(38, 208, 206, 0.2);
+        }
+
         .risk-score-value {
             font-size: 48px;
             font-weight: bold;
-            margin: 20px 0;
             background: linear-gradient(45deg, #26d0ce, #1a2980);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
         }
 
-        .risk-factors {
-            margin-top: 20px;
-            text-align: left;
+        .risk-score-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
         }
 
-        .risk-factor-item {
+        .risk-level-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .feature-item {
             background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
+            padding: 20px;
+            border-radius: 12px;
             transition: all 0.3s ease;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .risk-factor-item:hover {
+        .feature-item:hover {
             transform: translateY(-2px);
             background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(38, 208, 206, 0.3);
         }
+
+        .feature-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .feature-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .risk-low { color: #00C851; }
+        .risk-medium { color: #ffbb33; }
+        .risk-high { color: #ff4444; }
     </style>
 </head>
 <body>
@@ -483,10 +547,6 @@
             errorMessage.style.display = 'none';
 
             try {
-                console.log('Starting risk score calculation for customer:', currentCustomerId);
-                
-                console.log('Sending request to /calculate-risk-score...');
-                
                 const response = await fetch('/calculate-risk-score', {
                     method: 'POST',
                     headers: {
@@ -496,37 +556,42 @@
                     body: JSON.stringify({ customer_id: currentCustomerId })
                 });
 
-                console.log('Response status:', response.status);
                 const data = await response.json();
-                console.log('Received response:', data);
 
                 if (!response.ok) {
-                    console.error('Server error:', data.error);
                     throw new Error(data.error || 'Failed to calculate risk score');
                 }
 
                 if (!data.features) {
-                    console.error('No features data received');
                     throw new Error('No feature data available for risk calculation');
                 }
 
-                // Update risk score details
-                document.getElementById('riskScoreValue').textContent = data.risk_score;
-                document.getElementById('riskLevelBadge').textContent = data.risk_level;
-                document.getElementById('riskLevelBadge').style.color = data.risk_color;
+                // Update risk score details with animation
+                const riskScoreValue = document.getElementById('riskScoreValue');
+                const riskLevelBadge = document.getElementById('riskLevelBadge');
                 
-                // Update feature values with error checking
-                try {
-                    document.getElementById('totalTransactions').textContent = data.features.total_transactions || 0;
-                    document.getElementById('totalAmountSpent').textContent = `$${(data.features.total_amount_spent || 0).toLocaleString()}`;
-                    document.getElementById('avgTransaction').textContent = `$${(data.features.average_transaction_amount || 0).toFixed(2)}`;
-                    document.getElementById('maxTransaction').textContent = `$${(data.features.max_transaction_amount || 0).toLocaleString()}`;
-                    document.getElementById('uniqueTypes').textContent = data.features.unique_transaction_descriptions || 0;
-                    document.getElementById('transactionFrequency').textContent = (data.features.transaction_frequency || 0).toFixed(2);
-                } catch (featureError) {
-                    console.error('Error updating feature values:', featureError);
-                    throw new Error('Error displaying feature values');
+                riskScoreValue.textContent = data.risk_score;
+                riskLevelBadge.textContent = data.risk_level;
+                
+                // Set color based on risk level
+                if (data.risk_score >= 7) {
+                    riskLevelBadge.style.color = '#ff4444';
+                    riskLevelBadge.style.borderColor = '#ff4444';
+                } else if (data.risk_score >= 4) {
+                    riskLevelBadge.style.color = '#ffbb33';
+                    riskLevelBadge.style.borderColor = '#ffbb33';
+                } else {
+                    riskLevelBadge.style.color = '#00C851';
+                    riskLevelBadge.style.borderColor = '#00C851';
                 }
+                
+                // Update feature values with animation
+                document.getElementById('totalTransactions').textContent = data.features.total_transactions || 0;
+                document.getElementById('totalAmountSpent').textContent = `$${(data.features.total_amount_spent || 0).toLocaleString()}`;
+                document.getElementById('avgTransaction').textContent = `$${(data.features.average_transaction_amount || 0).toFixed(2)}`;
+                document.getElementById('maxTransaction').textContent = `$${(data.features.max_transaction_amount || 0).toLocaleString()}`;
+                document.getElementById('uniqueTypes').textContent = data.features.unique_transaction_descriptions || 0;
+                document.getElementById('transactionFrequency').textContent = (data.features.transaction_frequency || 0).toFixed(2);
 
                 riskScoreDetails.style.display = 'block';
                 errorMessage.style.display = 'none';

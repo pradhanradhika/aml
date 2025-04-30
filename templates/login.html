@@ -202,7 +202,7 @@
         window.onload = function() {
             const isLoggedIn = localStorage.getItem('isLoggedIn');
             if (isLoggedIn === 'true') {
-                window.location.href = 'index.html';
+                window.location.href = '/dashboard';
             }
         }
 
@@ -234,10 +234,10 @@
             const password = document.getElementById('loginPassword').value;
 
             if (username && password) {
-                // Store login state
+                // Store login state and redirect to dashboard
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('username', username);
-                window.location.href = '/';
+                window.location.href = '/dashboard';
             }
         }
 
